@@ -1,19 +1,19 @@
 // Copyright 2021-Present (c) Raja Lehtihet & Wael El Oraiby
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice,
 // this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 // this list of conditions and the following disclaimer in the documentation
 // and/or other materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors
 // may be used to endorse or promote products derived from this software without
 // specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,8 +31,8 @@ use std::fs::File;
 mod sensor_proxy;
 use sensor_proxy::*;
 
-use std::time::Duration;
 use daemonize::*;
+use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // First open up a connection to the session bus.
@@ -66,8 +66,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(_) => println!("Success, daemonized"),
         Err(e) => {
             eprintln!("Error, {}", e);
-            return Err("Couldn't daemonize it".into())
-        },
+            return Err("Couldn't daemonize it".into());
+        }
     }
 
     let mut last = String::new();
@@ -77,26 +77,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("orientation: {}", current);
             last = current;
             let xrandr_orientation = match last.as_str() {
-                "normal" => "normal",
-                "left-up" => "left",
-                "right-up" => "right",
-                "bottom-up" => "inverted",
-                _ => return Err("Invalid rotation".into()),
+                "normal" => Some("normal"),
+                "left-up" => Some("left"),
+                "right-up" => Some("right"),
+                "bottom-up" => Some("inverted"),
+                x => {
+                    eprintln!("Invalid rotation: {}", x);
+                    None
+                }
             };
 
-            let output = std::process::Command::new("xrandr")
-                .args(["--output", "eDP-1", "--rotate", xrandr_orientation])
-                .output()?;
-            
-            let stdout = String::from_utf8(output.stdout)?;
-            let stderr = String::from_utf8(output.stderr)?;
-            println!(
-                "execution: {}\nstderr: {}, stdout: {}",
-                output.status, stderr, stdout
-            )
+            match xrandr_orientation {
+                Some(rotation) => {
+                    let output = std::process::Command::new("xrandr")
+                        .args(["--output", "eDP-1", "--rotate", rotation])
+                        .output()?;
+
+                    let stdout = String::from_utf8(output.stdout)?;
+                    let stderr = String::from_utf8(output.stderr)?;
+                    println!(
+                        "execution: {}\nstderr: {}, stdout: {}",
+                        output.status, stderr, stdout
+                    )
+                }
+                _ => (),
+            }
         }
 
         std::thread::sleep(Duration::from_millis(500));
     }
-
 }
